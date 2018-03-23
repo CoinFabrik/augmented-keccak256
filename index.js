@@ -52,7 +52,7 @@ var utf8 = require('utf8');
 							if (value.substr(0, 2).toLocaleLowerCase() == '0x') {
 								value = value.substr(2);
 							}
-							_doUpdate(reverse_hexstr(value), 'hex');
+							_doUpdate(value, 'hex');
 						}
 						else {
 							_doUpdate(value, _type);
@@ -84,8 +84,7 @@ var utf8 = require('utf8');
 				}
 				else if (typeof value === 'string') {
 					if (value.substr(0, 2).toLocaleLowerCase() == '0x') {
-						value = reverse_hexstr(value.substr(2));
-						_doUpdate(value, 'hex');
+						_doUpdate(value.substr(2), 'hex');
 					}
 					else {
 						_doUpdate(value, 'string');
@@ -133,7 +132,11 @@ var utf8 = require('utf8');
 				}
 				//NOTE: hex value is in little-endian format
 				if (value.length > 0) {
-					hash.update(hexstr_to_array(value));
+					value = hexstr_to_array(value);
+					if (value.length > 32) {
+						throw new Error("Hexadecimal string longer than 32 bytes");
+					}
+					hash.update(value);
 				}
 			}
 			else if (_type == 'number') {
@@ -179,15 +182,15 @@ var utf8 = require('utf8');
 				if (value.length & 1) {
 					value = "0" + value;
 				}
-				value = reverse_hexstr(value);
-				//truncate trailing zeros
-				value = value.replace(/0+$/, '');
+				
+				//truncate leading zeros
+				value = value.replace(/^0+/, '');
 				//check if the hexa number fits into destination size
 				if (value.length > size / 4) {
 					throw new Error("Overflow");
 				}
-				//complete the string with zeros at the right
-				value += string_repeat("0", size / 4 - value.length);
+				//complete the string with zeros at the left
+				value = string_repeat("0", size / 4 - value.length) + value;
 				//update
 				_doUpdate(value, 'hex');
 			}
@@ -224,27 +227,26 @@ var utf8 = require('utf8');
 						value = "F" + value;
 					}
 				}
-				value = reverse_hexstr(value).toLocaleLowerCase();
 				//process depending on sign
 				if (!isNeg) {
-					//truncate trailing zeros
-					value = value.replace(/0+$/, '');
+					//truncate leading zeros
+					value = value.replace(/^0+/, '');
 					//check if the hexa number fits into destination size
 					if (value.length > size / 4) {
 						throw new Error("Overflow");
 					}
-					//complete the string with zeros at the right
-					value += string_repeat("0", size / 4 - value.length);
+					//complete the string with zeros at the left
+					value = string_repeat("0", size / 4 - value.length) + value;
 				}
 				else {
 					//truncate trailing "F"s
-					value = value.replace(/f+$/, '');
+					value = value.replace(/^f+/i, '');
 					//check if the hexa number fits into destination size
 					if (value.length > size / 4) {
 						throw new Error("Overflow");
 					}
-					//complete the string with "F"s at the right
-					value += string_repeat("f", size / 4 - value.length);
+					//complete the string with "F"s at the left
+					value = string_repeat("f", size / 4 - value.length) + value;
 				}
 				//update
 				_doUpdate(value, 'hex');
